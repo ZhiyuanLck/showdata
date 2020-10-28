@@ -1,0 +1,1991 @@
+% \iffalse meta-comment
+%
+% showdata.dtx
+% Copyright (C) 2020 Li Changkai <lichangkai225@qq.com>
+%
+% This work may be distributed and/or modified under the
+% conditions of the LaTeX Project Public License, either version 1.3
+% of this license or (at your option) any later version.
+% The latest version of this license is in
+%
+%   http://www.latex-project.org/lppl.txt
+%
+% and version 1.3 or later is part of all distributions of LaTeX
+% version 2005/12/01 or later.
+%
+% \fi
+% \iffalse
+\def\myfileversion{1.0}
+\def\myfiledate{2020/10/12}
+%
+%
+%<*batchfile>
+\begingroup
+\input l3docstrip.tex
+\keepsilent
+\usedir{tex/latex/showdata}
+\preamble
+
+Copyright (C) 2020 Li Changkai <lichangkai225@qq.com>
+
+This file may be distributed and/or modified under the
+conditions of the LaTeX Project Public License, either version 1.3
+of this license or (at your option) any later version.
+The latest version of this license is in:
+
+http://www.latex-project.org/lppl.txt
+
+and version 1.3 or later is part of all distributions of LaTeX
+version 2005/12/01 or later.
+
+\endpreamble
+\askforoverwritefalse
+\generate{\file{showdata.sty}{\from{showdata.dtx}{package}}}
+\generate{\file{sdutil.sty}{\from{showdata.dtx}{sdutil}}}
+\endgroup
+%</batchfile>
+%
+%<*driver>
+\documentclass[full]{l3doc}
+\usepackage{geometry}
+\usepackage{showdata}
+\geometry{
+  left=5cm,
+  right=2cm,
+  top=2.5cm,
+  bottom=2.5cm
+}
+
+\makeatletter
+\DeclareRobustCommand\oiarg[1]{%
+     {\normalfont\ttfamily[}%
+     \ifmmode \expandafter \nfss@text \fi
+     {%
+      \meta@font@select
+      \edef\meta@hyphen@restore
+        {\hyphenchar\the\font\the\hyphenchar\font}%
+      \hyphenchar\font\m@ne
+      \language\l@nohyphenation
+      #1\/%
+      \meta@hyphen@restore
+     }{\normalfont\ttfamily]}%
+}
+
+\ExplSyntaxOn
+\DoNotIndex{\begin, \end}
+\DoNotIndex{\seq_new:N}
+\ExplSyntaxOff
+\makeatother
+
+\AtEndDocument{
+  \newgeometry{
+    left=2cm,
+    right=2cm,
+    top=2.5cm,
+    bottom=2.5cm
+  }
+  \PrintIndex
+}
+
+\begin{document}
+\DocInput{showdata.dtx}
+\end{document}
+%</driver>
+% \fi
+% \title{The package \pkg{showdata}
+% \thanks{This document corresponds to the version~\myfileversion\space of
+% \pkg{nicematrix}, at the date of~\myfiledate.}} \author{F. Pantigny \\
+% \texttt{fpantigny@wanadoo.fr}}
+%
+% \hypersetup
+%   {
+%     bookmarksopen,
+%     bookmarksopenlevel=3,
+%     pdfinfo =
+%      {
+%        Title = The package 'showdata' ,
+%        Subject = A LaTeX package ,
+%        Author = Li Changkai
+%      }
+%   }
+%
+%
+% \maketitle
+%
+% \begin{abstract}
+% The LaTeX package \pkg{nicematrix} provides new environments similar to the
+% classical environments |{tabular}|, |{array}| and |{matrix}| of \pkg{array}
+% and \pkg{amsmath} but with extended features.
+% \end{abstract}
+%
+% \newgeometry{
+%  left=5.2cm,
+%  right=1.8cm,
+%  top=2.5cm,
+%  bottom=2.5cm
+% }
+%
+% \begin{implementation}
+%
+% \section{Implementation}
+%
+% This package is written with \pkg{expl3} and provides user interfaces with
+% \pkg{xparse}. Auxiliary package \pkg{showdata-util} provides some useful
+% common functions.
+%
+% If the function has only one argument and there are no special instructions,
+% the argument represents for \meta{domain}.
+%
+%    \begin{macrocode}
+%<*package>
+%<@@=showdata>
+\RequirePackage{expl3, xparse, sdutil}
+\ProvidesExplPackage
+  { showdata }
+  { \myfiledate }
+  { \myfileversion }
+  { Store and show your datas }
+%    \end{macrocode}
+%
+% \subsection{Some variables}
+%
+% \begin{variable}{\g_@@_domain_seq}
+%   Sequence of domain names.
+%    \begin{macrocode}
+\seq_new:N \g_@@_domain_seq
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_reserved_counter_seq, \g_@@_reserved_counter_prop}
+% Sequence and property list of reserved counters. Using a property list is to
+% make commands expandable.
+%    \begin{macrocode}
+\seq_set_from_clist:Nn \g_@@_reserved_counter_seq
+  { sdenv, sdgroup, sditem }
+\prop_gset_from_keyval:Nn \g_@@_reserved_counter_prop
+  { sdenv=, sdgroup=, sditem= }
+%    \end{macrocode}
+% \end{variable}
+%
+% \subsection{Messages}
+%
+% Declare package message functions.
+%    \begin{macrocode}
+\sdutil_set_msg_cs:n { showdata }
+%    \end{macrocode}
+%
+% Message when domain is not set.
+%    \begin{macrocode}
+\@@_msg_new:nn { domain-not-set }
+  {
+    Domains~ are~ not~ set~ or~ empty.~ Please~ set~ domains~ by~ command~
+    \sdsetdomain~ first.
+  }
+%    \end{macrocode}
+%
+% Message when group, prop, or counter is not defined.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{group/prop/counter}
+%   \item \meta{command} that uses the attribute
+% \end{arguments}
+%    \begin{macrocode}
+\@@_msg_new:nn { sd-not-define }
+  {
+    #4~ uses~ an~ undefined~ #2~ `#3'~ of~ domain~ `#1'~ \msg_line_context:.
+  }
+%    \end{macrocode}
+%
+% Message when domain is not defined.
+%    \begin{macrocode}
+\@@_msg_new:nn { domain-not-define }
+  {
+    domain `#1'~ not~ defined!
+  }
+%    \end{macrocode}
+%
+% Message when counter name is reserved (sdenv, sdgroup, sditem).
+%    \begin{macrocode}
+\@@_msg_new:nn { reserved-counter }
+  {
+    counter~ name~ `#1'~ is~ reserved~ for~ package.
+  }
+%    \end{macrocode}
+%
+% Message when revising the value of reserved counter.
+%    \begin{macrocode}
+\@@_msg_new:nn { counter-read-only }
+  {
+    reserved counter~ `#1'~ is~ read-only.
+  }
+%    \end{macrocode}
+%
+% Message when reserved counter is used in wrong place.
+%    \begin{macrocode}
+\@@_msg_new:nn { counter-use-only }
+  {
+    counter~ `#1'~ is~ used~ only~ in~ #2.
+  }
+%    \end{macrocode}
+%
+% Message when local subgroup is appended to local group multiple times.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{local group}
+% \end{arguments}
+%    \begin{macrocode}
+\@@_msg_new:nn { addto-multi-times }
+  {
+    You~ have~ used~ \c_backslash_str sdaddtogroup~ to~ append~ subgroup~ to~
+    the~ local~ group~ `#2'~ more~ than~ once~ in~ batch~ environment~ of~
+    domain~ `#1'.~ This~ will~ cause~ the~ same~ subgroup~ to~ be~ printed~
+    multiple~ times.
+  }
+%    \end{macrocode}
+%
+% Message when \cmd{\sdcset} or \cmd{\sdcstep} is used in \cmd{\sdsetshowstyle}
+% or \cmd{\sdsetshowstyle*}.
+%    \begin{macrocode}
+\@@_msg_new:nn { step-set-not-allowed }
+  {
+    \c_backslash_str #1~ is~ not~ allowed~ in~ \c_backslash_str sdsetshowstyle.
+  }
+%    \end{macrocode}
+%
+% Message when counters except |sditem| and |sdgroup| are used in
+% \cmd{\sdsetshowstyle} or \cmd{\sdsetshowstyle*}.
+%    \begin{macrocode}
+\@@_msg_new:nn { show-counter-use-only }
+  {
+    Only~ counters~ `sditem'~ and~ `sdgroup'~ are~ available~ in~ \c_backslash_str
+    sdsetshowstle.
+  }
+%    \end{macrocode}
+%
+% Message when you try to pass an optional argument to \cmd{\sduse} in
+% \cmd{\sdsetshowstyle*}.
+%    \begin{macrocode}
+\@@_msg_new:nn { show-global-ignore-optional }
+  {
+    optional~ argument~ of~ \c_backslash_str sduse~ in~ \c_backslash_str
+    sdsetshowstyle*~ is~ ignored.
+  }
+%    \end{macrocode}
+%
+% Message when item index is out of range.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{global/local (group)}
+%   \item \meta{group}
+%   \item \meta{prop}
+% \end{arguments}
+%    \begin{macrocode}
+\@@_msg_new:nn { item-index-out-of-range }
+  {
+    index~ out~ of~ range~ when~ requiring~ the~ item~ of~ property~ `#4'~ of~
+    #2~ group~ `#3'~ in~ domain~ `#1',~ nothing~ returned.
+  }
+%    \end{macrocode}
+%
+% Detailed message when item index is out of range.
+% \begin{arguments}
+%   \item \meta{group}
+%   \item \meta{prop}
+%   \item \meta{total number of items}
+%   \item \meta{required item index}
+% \end{arguments}
+%    \begin{macrocode}
+\@@_msg_new:nn { global-item-index-out-of-range-detail }
+  {
+    property~ `#2'~ of~ global~ group~ `#1'~ has~ #3~ items~ but~ you~ are~
+    requiring~ the~ item~ of~ index~ #4.
+    \\ \\
+    Please~ make~ sure~ there~ are~ an~ equal~ number~ of~ items~ of~
+    properties~ in~ global~ group~ `#1'.
+  }
+
+\@@_msg_new:nn { local-item-index-out-of-range-detail }
+  {
+    subgroup of property~ `#2'~ of~ local~ group~ `#1'~ has~ #3~ items~ but~ you~ are~
+    requiring~ the~ item~ of~ index~ #4.
+    \\ \\
+    Please~ make~ sure~ there~ are~ an~ equal~ number~ of~ items~ of~
+    properties~ in~ local~ group~ `#1'.
+  }
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_check_undefined:nnnn}
+% Internal function that checks if group, prop and counter is defined.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{group/prop/counter=alias show in message}
+%   \item \meta{attribute name}
+%   \item \meta{command that define the attribute}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_check_undefined:nnnn
+  {
+    \str_if_in:nnTF { #2 } { = }
+      { \sdutil_get_kv:nNN { #2 } }
+      { \sdutil_get_kv:nNN { #2=#2 } }
+    \l_tmpa_tl \l_tmpb_tl
+    \regex_replace_all:nnN { \s } { _ } \l_tmpa_tl
+    \seq_if_in:cnF { g_@@_#1_\l_tmpa_tl _seq } { #3 }
+      {
+        \sdutil_regex_replace_all:nnnN
+          { . } { \c{string} \0 } { #4 } \l_tmpc_tl
+        \@@_msg_error:nxxxx { sd-not-define }
+          { #1 } { \l_tmpb_tl } { #3 } { \l_tmpc_tl }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_check_class_not_set:}
+% Internal function that checks if domain is not set or empty.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_check_domain_not_set:
+  {
+    \bool_if:nT
+      {
+        ! \seq_if_exist_p:N \g_@@_domain_seq ||
+        \seq_if_empty_p:N \g_@@_domain_seq
+      }
+      { \@@_msg_critical:n { domain-not-set } }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_check_class_not_define:nn}
+% Internal function that checks if domain is undefined.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{msg type}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_check_domain_not_define:nn
+  {
+    \seq_if_in:NnF \g_@@_domain_seq { #1 }
+      {
+        \cs_if_exist_use:c { @@_msg_#2:nn }
+          { domain-not-define } { #1 }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_check_reserved_counter:n}
+% Internal function that checks if counter is reserved.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_check_reserved_counter:n
+  {
+    \prop_if_in:NnT \g_@@_reserved_counter_prop { #1 }
+      {
+        \@@_msg_error:nn { reserved-counter } { #1 }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_check_counter_use:nn}
+% Internal function that checks if reserved counter is used in the right
+% place.
+% \begin{arguments}
+%   \item \meta{reserved counter}
+%   \item \meta{expected counter}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_check_counter_use:nn
+  {
+    \str_if_eq:nnF { #1 } { #2 }
+      {
+        \@@_check_counter_use_only:n { #1 }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_check_counter_use_only:n}
+% Promt the right place where the reserved counter should be used.
+% \begin{arguments}
+%   \item \meta{reserved counter}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_check_counter_use_only:n
+  {
+    \str_case:nn { #1 }
+      {
+        { sdenv }
+        {
+          \@@_msg_error:nnn { counter-use-only }
+            { #1 } { group~environment }
+        }
+        { sdgroup }
+        {
+          \@@_msg_error:nxx { counter-use-only }
+            { #1 } { \c_backslash_str sdsetshowstyle }
+        }
+        { sditem }
+        {
+          \@@_msg_error:nxx { counter-use-only } { #1 }
+            {
+              \c_backslash_str sdsetshowstyle~ or~
+              \c_backslash_str sdsetshowstyle*
+            }
+        }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_check_couter_not_define:nnnn}
+% Internal function that checks if counter is undefined.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{global/local (counter)}
+%   \item \meta{counter}
+%   \item \meta{command} that uses the counter
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_check_couter_not_define:nnnn
+  {
+    \prop_if_in:cnF { g_@@_#1_#2_counter_prop } { #3 }
+      {
+        \str_if_eq:nnTF { #2 } { global }
+          {
+            \@@_msg_error:nxxxx { sd-not-define } { #1 }
+              { #2~counter } { #3 } { \c_backslash_str#4* }
+          }
+          {
+            \@@_msg_error:nxxxx { sd-not-define } { #1 }
+              { #2~counter } { #3 } { \c_backslash_str#4 }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_check_group_add_once:nn}
+% Internal function that checks if local subgroup is added multiple times.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{local group}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_check_group_add_once:nn
+  {
+    \int_compare:nT
+      {
+        \int_use:c
+          { g_@@_#1_addto_local_group_#2_counter_int }
+        > 1
+      }
+      {
+        \@@_msg_warning:nnn { addto-multi-times } { #1 } { #2 }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_check_counter_not_allowed:nn}
+% Internal function that checks if you are stepping or setting the value of
+% a reserved counter.
+% \begin{arguments}
+%   \item \meta{env/show}
+%   \item \meta{command} that uses counter
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_check_counter_not_allowed:nn
+  {
+    \str_if_eq:nnT { #1 } { show }
+      {
+        \@@_msg_fatal:nn { step-set-not-allowed } { #2 }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_check_show_counter_use:nn}
+% Internal function that checks invalid counter usage in
+% \cmd{\sdsetshowstyle}.
+% \begin{arguments}
+%   \item \meta{env/show}
+%   \item \meta{counter}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_check_show_counter_use:nn
+  {
+    \bool_if:nT
+      {
+        \str_if_eq_p:nn { #1 } { show } &&
+        ! \str_if_eq_p:nn { #2 } { sditem } &&
+        ! \str_if_eq_p:nn { #2 } { sdgroup }
+      }
+      {
+        \@@_msg_fatal:n { show-counter-use-only }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_check_invalid_index:nnnnnn}
+% Internal function that checks if item index is out of range.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{global/local (group)}
+%   \item \meta{group}
+%   \item \meta{seq name}
+%   \item \meta{index seq name}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_check_invalid_index:nnnnnn
+  {
+    \int_compare:nT
+      { \int_use:c { #6 } > \seq_count:c { #5 } }
+      {
+        \@@_msg_warning:nnnnn { item-index-out-of-range }
+          { #1 } { #2 } { #3 } { #4 }
+
+        \@@_msg_warning:nxxxx { #2-item-index-out-of-range-detail }
+          { #3 } { #4 } { \seq_count:c { #5 } } { \int_use:c { #6 } }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Domain initialization}
+%
+% \begin{macro}{\sdsetdomain}
+% User interface to define domains and initialize these domains.
+%    \begin{macrocode}
+\NewDocumentCommand { \sdsetdomain } { m }
+  {
+    \@@_set_domain:n { #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_set_domain:n}
+% Set domain name list and then initialize every single domain.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_set_domain:n
+  {
+    \seq_set_from_clist:Nn \g_@@_domain_seq { #1 }
+    \clist_map_inline:nn { #1 }
+      { \@@_set_single_domain:n { ##1 } }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_set_single_domain:n}
+% Initialize group, property and counter sequences of the domain first, and
+% then define options associated with every domain.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_set_single_domain:n
+  {
+    \@@_init_single_domain_attr:n { #1 }
+    \@@_def_single_domain_opt:n { #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_init_single_domain_attr:n}
+% This function initializes group, property and counter sequences of the domain.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_init_single_domain_attr:n
+  {
+%    \end{macrocode}
+% Initialize global group sequence with default value |star|, |date|, |all|.
+%    \begin{macrocode}
+    \seq_gset_from_clist:cn { g_@@_#1_global_group_seq }
+      { star, date, all }
+%    \end{macrocode}
+% Initialize local group sequence with default value |date|, |all|.
+%    \begin{macrocode}
+    \seq_gset_from_clist:cn { g_@@_#1_local_group_seq }
+      { date, all }
+%    \end{macrocode}
+% Initialize global and local counter sequences and property lists.
+%    \begin{macrocode}
+    \seq_gclear_new:c { g_@@_#1_global_counter_seq }
+    \seq_gclear_new:c { g_@@_#1_local_counter_seq }
+    \prop_gclear_new:c { g_@@_#1_global_counter_prop }
+    \prop_gclear_new:c { g_@@_#1_local_counter_prop }
+%    \end{macrocode}
+% Initialize property sequence of the domain.
+%    \begin{macrocode}
+    \seq_gclear_new:c { g_@@_#1_prop_seq }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_def_single_domain_opt:n}
+% Define options for every single domain.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_def_single_domain_opt:n
+  {
+    \keys_define:nn { showdata / #1 }
+      {
+        prop .code:n =
+          {
+            \sdutil_seq_gappend_clist:cn
+              { g_@@_#1_prop_seq } { ##1 }
+          },
+        local-group .code:n =
+          {
+            \sdutil_seq_gappend_clist:cn
+              { g_@@_#1_local_group_seq } { ##1 }
+          },
+        global-group .code:n =
+          {
+            \sdutil_seq_gappend_clist:cn
+              { g_@@_#1_global_group_seq } { ##1 }
+          },
+        group .code:n =
+          {
+            \sdutil_seq_gappend_clist:cn
+              { g_@@_#1_global_group_seq } { ##1 }
+            \sdutil_seq_gappend_clist:cn
+              { g_@@_#1_local_group_seq } { ##1 }
+          },
+        local-counter .code:n =
+          {
+            \@@_counter_seq_append:nnn { #1 } { local } { ##1 }
+          },
+        global-counter .code:n =
+          {
+            \@@_counter_seq_append:nnn { #1 } { global } { ##1 }
+          },
+        counter .code:n =
+          {
+            \@@_counter_seq_append:nnn { #1 } { local } { ##1 }
+            \@@_counter_seq_append:nnn { #1 } { global } { ##1 }
+          },
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_counter_seq_append:nnn}
+% Used by \cs{@@_def_single_domain_opt:n} to append counter list to the counter
+% sequence and property list.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{global/local}
+%   \item \meta{counter list}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_counter_seq_append:nnn
+  {
+    \clist_map_inline:nn { #3 }
+      {
+        \seq_gput_right:cn { g_@@_#1_#2_counter_seq } { ##1 }
+        \prop_gput:cnn { g_@@_#1_#2_counter_prop } { ##1 } { }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Domain options setup}
+%
+%
+% \begin{macro}{\sdsetup}
+% Set the keys with the path prefix |showdata/|. This command is mainly used
+% to collect options in one command by \meta{domain}/\meta{opt}=\meta{val}.
+%    \begin{macrocode}
+\NewDocumentCommand { \sdsetup } { m }
+  {
+    \@@_check_domain_not_set:
+    \keys_set:nn { showdata } { #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdsetupsub}
+% Apply the same options to every \meta{domain} in the \meta{domain list}.
+% \begin{arguments}
+%   \item \meta{domain list}
+%   \item \meta{opt list}
+% \end{arguments}
+%    \begin{macrocode}
+\NewDocumentCommand { \sdsetupsub } { m m }
+  {
+    \@@_check_domain_not_set:
+    \clist_map_inline:nn { #1 }
+      { \@@_setup_single:nn { ##1 } { #2 } }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdsetupall}
+% Apply the same options to every \meta{domain} that has been defined before.
+%    \begin{macrocode}
+\NewDocumentCommand { \sdsetupall } { m }
+  {
+    \@@_check_domain_not_set:
+    \seq_map_inline:Nn \g_@@_domain_seq
+      { \@@_setup_single:nn { ##1 } { #1 } }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_setup_single:nn}
+% Set keys for single \meta{domain}.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{opt list}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_setup_single:nn
+  {
+    \@@_check_domain_not_define:nn { #1 } { critical }
+    \keys_set:nn { showdata / #1 } { #2 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Batch environment}
+%
+% \begin{macro}{\NewsdBatchEnvironment, \RenewsdBatchEnvironment,
+%   \DeclaresdBatchEnvironment, \ProvidesdBatchEnvironment}
+% Provide commands to declare batch environment.
+%    \begin{macrocode}
+\clist_map_inline:nn { New, Renew, Declare, Provide }
+  {
+    \cs_new_protected:cpn { #1sdBatchEnvironment } ##1##2##3##4
+      {
+        \@@_new_batch_env:nnnnn { #1 } { ##1 } { ##2 } { ##3} { ##4 }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_new_batch_env:nnnnn}
+% Make it possible to use |#1| instead of |##1| in nested functions and
+% process \meta{key-value list} one by one.
+% \begin{arguments}
+%   \item \meta{New/Declare/Renew/Provide}
+%   \item \meta{key-value list}, format of \meta{key-value} is \meta{domain
+%     \oiarg{= environment}}
+%   \item \meta{arg spec}
+%   \item \meta{start code}
+%   \item \meta{end code}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_new_batch_env:nnnnn
+  {
+    \@@_check_domain_not_set:
+    \tl_set:Nn \l_@@_env_tmpa_tl { #4 }
+    \tl_set:Nn \l_@@_env_tmpb_tl { #5 }
+    \clist_map_inline:nn { #2 }
+      {
+        \@@_parse_single_batch_env:nnnVV { #1 } { ##1 } { #3 }
+        \l_@@_env_tmpa_tl
+        \l_@@_env_tmpb_tl
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_parse_single_batch_env:nnnnn}
+% Parse \meta{key-value} and save \meta{domain} name to \cs{l_@@_domain_tl},
+% save \meta{environment} name to \cs{l_@@_env_tl}. Before declaring
+% environment, bind the environment with the domain and do some
+% initialization in terms of the domain.
+% \begin{arguments}
+%   \item \meta{New/Declare/Renew/Provide}
+%   \item \meta{domain \oiarg{= environment}}
+%   \item \meta{arg spec}
+%   \item \meta{start code}
+%   \item \meta{end code}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_parse_single_batch_env:nnnnn
+  {
+    \str_if_in:nnTF { #2 } { = }
+      { \sdutil_get_kv:nNN { #2 } }
+      { \sdutil_get_kv:nNN { #2=sd#2 } }
+    \l_@@_domain_tl \l_@@_env_tl
+    \@@_init_before_env:V \l_@@_domain_tl
+    \@@_set_single_batch_env:nVVnnn { #1 }
+      \l_@@_domain_tl \l_@@_env_tl
+      { #3 } { #4 } { #5 }
+  }
+\cs_generate_variant:Nn \@@_parse_single_batch_env:nnnnn { nnnVV }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_init_before_env:n}
+% Initialize global group, global counter, reserved counter |sdenv| and
+% index sequence.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_init_before_env:n
+  {
+    \@@_check_domain_not_define:nn { #1 } { critical }
+    \@@_init_global_group:n { #1 }
+    \@@_add_default_counter:n { #1 }
+    \@@_init_counter:nnn { #1 } { env } { global }
+    \int_gzero_new:c { g_@@_#1_reserved_counter_sdenv_int }
+    \@@_init_index_seq:n { #1 }
+  }
+\cs_generate_variant:Nn \@@_init_before_env:n { V }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_init_index_seq:n}
+% Internal function that initializes local subgroup index sequences.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_init_index_seq:n
+  {
+    \seq_map_inline:cn { g_@@_#1_local_group_seq }
+      {
+        \seq_gclear_new:c { g_@@_#1_subgroup_##1_index_seq }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_init_global_group:n}
+% Initialize global group sequences. For every property of every global group,
+% there is a corresponding sequence to save data.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_init_global_group:n
+  {
+    \seq_map_inline:cn { g_@@_#1_global_group_seq }
+      {
+        \seq_map_inline:cn { g_@@_#1_prop_seq }
+          {
+            \seq_gclear_new:c { g_@@_#1_global_group_##1_prop_####1_seq }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_add_default_counter:n}
+% Every global group has a global counter to count items, and every local
+% group has a global counter to count batches and a local counter to count
+% items. These default counters have the same name with the corresponding
+% group and may be used for other purpose.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_add_default_counter:n
+  {
+    \@@_set_group_default_counter:nnn { #1 } { global } { global }
+    \@@_set_group_default_counter:nnn { #1 } { global } { local }
+    \@@_set_group_default_counter:nnn { #1 } { local } { local }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_set_group_default_counter:nnn}
+% Used by \cs{@@_add_default_counter:n} to concatenate group sequence to the
+% right of counter sequence.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{global/local (counter)}
+%   \item \meta{global/local (group)}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_set_group_default_counter:nnn
+  {
+    \seq_map_inline:cn { g_@@_#1_#3_group_seq }
+      {
+        \seq_gput_left:cn { g_@@_#1_#2_counter_seq } { ##1 }
+        \prop_gput:cnn { g_@@_#1_#2_counter_prop } { ##1 } { }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_init_counter:nnn}
+% Initialize counter sequences. Note that counters in batch environment and
+% counters in \cs{sdsetshowstyle} or \cs{sdsetshowstyle*} are distinguished
+% from the infix \meta{env/show}.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{env/show}
+%   \item \meta{global/local}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_init_counter:nnn
+  {
+    \seq_map_inline:cn { g_@@_#1_#3_counter_seq }
+      {
+        \@@_check_reserved_counter:n { ##1 }
+        \int_gzero_new:c { g_@@_#1_#2_#3_counter_##1_int }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_set_single_batch_env:nnnnnn}
+% Declare batch environment.
+% \begin{arguments}
+%   \item \meta{New/Declare/Renew/Provide}
+%   \item \meta{domain}
+%   \item \meta{environment}
+%   \item \meta{arg spec}
+%   \item \meta{start code}
+%   \item \meta{end code}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_set_single_batch_env:nnnnnn
+  {
+    \cs_if_exist_use:c { #1DocumentEnvironment } { #3 } { #4 }
+      {
+        \@@_env_init:n { #2 }
+        #5
+      } { #6 }
+  }
+\cs_generate_variant:Nn \@@_set_single_batch_env:nnnnnn { nVVnnn }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_env_init:n}
+% Do some initialization inside batch environment. Step counter |sdenv| first,
+% and then initialize local group, local counter and define some commands
+% about saving data and counter.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_env_init:n
+  {
+    % step counter first
+    \int_gincr:c { g_@@_#1_reserved_counter_sdenv_int }
+    \@@_env_init_local_group:n { #1 }
+    \@@_init_counter:nnn { #1 } { env } { local }
+    \@@_env_init_cs:n { #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_env_init_local_group:n}
+% Initialize local group. The difference from initialization of global group
+% is that for every property of every local group, there is a corresponding
+% sequence with an extra number, the value of the counter |sdenv|.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_env_init_local_group:n
+  {
+    \seq_map_inline:cn { g_@@_#1_local_group_seq }
+      {
+        \seq_map_inline:cn { g_@@_#1_prop_seq }
+          {
+            \seq_gclear_new:c
+              {
+                g_@@_#1_local_group_##1_prop_####1_
+                \int_use:c { g_@@_#1_reserved_counter_sdenv_int }
+                _seq
+              }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_env_init_cs:n}
+% Entry for defining commands used only inside batch environment.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_env_init_cs:n
+  {
+    \@@_env_init_cs_save:n { #1 }
+    \@@_init_cs_addto_group:n { #1 }
+    \@@_init_cs_counter:nn { #1 } { env }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Save data}
+%
+% \begin{macro}{\@@_env_init_cs_save:n}
+% Declaring commands for saving data.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_env_init_cs_save:n
+  {
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\sdsave}
+% Save data to group.
+% \begin{arguments}
+%   \item |*| for saving to global group, otherwise local group
+%   \item \meta{group}
+%   \item \meta{prop}
+%   \item \meta{data}
+% \end{arguments}
+%    \begin{macrocode}
+    \DeclareDocumentCommand { \sdsave } { s m m +m }
+      {
+        \IfBooleanTF { ##1 }
+          {
+            \@@_save_global_group_prop:nnnn
+              { #1 } { ##2 } { ##3 } { ##4 }
+          }
+          {
+            \@@_save_local_group_prop:nnnn
+              { #1 } { ##2 } { ##3 } { ##4 }
+          }
+      }
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\sdesave}
+% Expand data first and then save it to group.
+% \begin{arguments}
+%   \item |*| for saving to global group, otherwise local group
+%   \item \meta{group}
+%   \item \meta{prop}
+%   \item \meta{data}
+% \end{arguments}
+%    \begin{macrocode}
+    \DeclareDocumentCommand { \sdesave } { s m m +m }
+      {
+        \IfBooleanTF { ##1 }
+          {
+            \@@_save_global_group_prop:nnnx
+              { #1 } { ##2 } { ##3 } { ##4 }
+          }
+          {
+            \@@_save_local_group_prop:nnnx
+              { #1 } { ##2 } { ##3 } { ##4 }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_save_global_group_prop:nnnn}
+% Internal function that saves data to global group.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{global group}
+%   \item \meta{prop}
+%   \item \meta{data}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_save_global_group_prop:nnnn
+  {
+    \@@_check_undefined:nnnn
+      { #1 } { global~group } { #2 } { \sdsave*~or~\sdesave* }
+    \@@_check_undefined:nnnn
+      { #1 } { prop=property } { #3 } { \sdsave*~or~\sdesave* }
+    \seq_gput_right:cn { g_@@_#1_global_group_#2_prop_#3_seq } { #4 }
+  }
+\cs_generate_variant:Nn \@@_save_global_group_prop:nnnn { nnnx }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_save_local_group_prop:nnnn}
+% Internal function that saves data to local group.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{local group}
+%   \item \meta{prop}
+%   \item \meta{data}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_save_local_group_prop:nnnn
+  {
+    \@@_check_undefined:nnnn
+      { #1 } { local~group } { #2 } { \sdsave~or~\sdesave }
+    \@@_check_undefined:nnnn
+      { #1 } { prop=property } { #3 } { \sdsave~or~\sdesave }
+    \seq_gput_right:cn
+      {
+        g_@@_#1_local_group_#2_prop_#3_
+        \int_use:c { g_@@_#1_reserved_counter_sdenv_int }
+        _seq
+      } { #4 }
+  }
+\cs_generate_variant:Nn \@@_save_local_group_prop:nnnn { nnnx }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_init_cs_addto_group:n}
+% Initialize a special counter before declaring \cs{sdaddtogroup}. This
+% counter is used to check if the subgroup is added more than once.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_init_cs_addto_group:n
+  {
+    \seq_map_inline:cn { g_@@_#1_local_group_seq }
+      {
+        \int_gzero_new:c { g_@@_#1_addto_local_group_##1_counter_int }
+      }
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\sdaddtogroup}
+% Declare commands to indicate whether to append the subgroup to the local
+% group.
+% \begin{arguments}
+%   \item \meta{local group list}
+% \end{arguments}
+%    \begin{macrocode}
+    \NewDocumentCommand { \sdaddtogroup } { m }
+      { \@@_addto_group:nn { #1 } { ##1 } }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_addto_group:nn}
+% Interal function that saves the number of the batch to corresponding index
+% sequnces.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{local group list}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_addto_group:nn
+  {
+    \clist_map_inline:nn { #2 }
+      {
+        \int_gincr:c
+          { g_@@_#1_addto_local_group_##1_counter_int }
+        \@@_check_undefined:nnnn
+          { #1 } { local~group } { ##1 } { \sdaddtogroup }
+        \@@_check_group_add_once:nn { #1 } { ##1 }
+        \seq_gput_right:cx { g_@@_#1_subgroup_##1_index_seq }
+          {
+            \int_use:c { g_@@_#1_reserved_counter_sdenv_int }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Counters}
+%
+% \begin{macro}{\@@_init_cs_counter:nn}
+% Declare commands to show, step and set counter. Star version means operating
+% on a global counter, and none-star version means operating on a local
+% counter.
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_init_cs_counter:nn
+  {
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\sdcarabic, \sdcalph, \sdcAlph, \sdcroman, \sdcRoman}
+% Print the value of the counter in specified style.
+%    \begin{macrocode}
+    \clist_map_inline:nn { arabic, alph, Alph, roman, Roman }
+      {
+        \exp_args:Nc \DeclareExpandableDocumentCommand { sdc##1 } { s m }
+          {
+            \IfBooleanTF { ####1 }
+              { \@@_use_counter:nnnnn { global } }
+              { \@@_use_counter:nnnnn { local } }
+            { #1 } { #2 } { ####2 } { ##1 }
+          }
+      }
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\sdcstep}
+% Adds one to counter globally or locally.
+%    \begin{macrocode}
+    \DeclareDocumentCommand { \sdcstep } { s m }
+      {
+        \IfBooleanTF { ##1 }
+          { \@@_step_counter:nnnn { global } }
+          { \@@_step_counter:nnnn { local } }
+        { #1 } { #2 } { ##2 }
+      }
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\sdcvalue}
+% Get the value of counter.
+%    \begin{macrocode}
+    \DeclareExpandableDocumentCommand { \sdcvalue } { s m }
+      {
+        \IfBooleanTF { ##1 }
+          { \@@_get_counter_value:nnnn { global } }
+          { \@@_get_counter_value:nnnn { local } }
+        { #1 } { #2 } { ##2 }
+      }
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\sdcvalue}
+% Set the value of counter.
+%    \begin{macrocode}
+    \DeclareDocumentCommand { \sdcset } { s m m }
+      {
+        \IfBooleanTF { ##1 }
+          { \@@_set_counter:nnnnx { global } }
+          { \@@_set_counter:nnnnx { local } }
+        { #1 } { #2 } { ##2 } { ##3 }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_use_counter:nnnnn}
+% Internal function that prints the value of counter in a specified style.
+% Function will first check if the counter is reserved. If the counter is
+% reserved, it will be checked if it is used in the right place then if it is
+% the counter has the prefix |reserved|. If it is a normal counter, the
+% counter has the prefix |env/show_global/local|.
+% \begin{arguments}
+%   \item \meta{global/local (counter)}
+%   \item \meta{domain}
+%   \item \meta{env/show}
+%   \item \meta{counter}
+%   \item \meta{print style}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new:Nn \@@_use_counter:nnnnn
+  {
+    \prop_if_in:NnTF \g_@@_reserved_counter_prop { #4 }
+      {
+        \str_if_eq:nnT { #3 } { env }
+          {
+            \@@_check_counter_use:nn { #4 } { sdenv }
+          }
+        \@@_check_show_counter_use:nn { #3 } { #4 }
+        \cs_if_exist_use:c { int_to_#5:n }
+          {
+            \int_use:c { g_@@_#2_reserved_counter_#4_int }
+          }
+      }
+      {
+        \@@_check_couter_not_define:nnnn { #2 } { #1 } { #4 } { sdc#5 }
+        \cs_if_exist_use:c { int_to_#5:n }
+          {
+            \int_use:c { g_@@_#2_#3_#1_counter_#4_int }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_step_counter:nnnn}
+% Internal function that steps counter. This function is used only in batch
+% environment.
+% \begin{arguments}
+%   \item \meta{global/local (counter)}
+%   \item \meta{domain}
+%   \item \meta{env/show}
+%   \item \meta{counter}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_step_counter:nnnn
+  {
+    \@@_check_counter_not_allowed:nn { #3 } { sdcstep }
+    \seq_if_in:NnTF \g_@@_reserved_counter_seq { #4 }
+      { \@@_msg_error:nn { counter-read-only } { #4 } }
+      {
+        \@@_check_couter_not_define:nnnn { #2 } { #1 } { #4 } { sdcstep }
+      }
+    \int_gincr:c { g_@@_#2_#3_#1_counter_#4_int }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_get_counter_value:nnnn}
+% Internal function that gets the value of the counter. The process of
+% checking the counter is similar to \cs{@@_use_counter:nnnnn}.
+% \begin{arguments}
+%   \item \meta{global/local (counter)}
+%   \item \meta{domain}
+%   \item \meta{env/show}
+%   \item \meta{counter}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new:Nn \@@_get_counter_value:nnnn
+  {
+    \prop_if_in:NnTF \g_@@_reserved_counter_prop { #4 }
+      {
+        \str_if_eq:nnT { #3 } { env }
+          {
+            \@@_check_counter_use:nn { #4 } { sdenv }
+          }
+        \@@_check_show_counter_use:nn { #3 } { #4 }
+        \int_use:c { g_@@_#2_reserved_counter_#4_int }
+      }
+      {
+        \@@_check_couter_not_define:nnnn { #2 } { #1 } { #4 } { sdcvalue }
+        \int_use:c { g_@@_#2_#3_#1_counter_#4_int }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_set_counter:nnnnn}
+% Internal function that sets the value of counter. This function is used only
+% in batch environment.
+% \begin{arguments}
+%   \item \meta{global/local (counter)}
+%   \item \meta{domain}
+%   \item \meta{env/show}
+%   \item \meta{counter}
+%   \item \meta{integer expr}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_set_counter:nnnnn
+  {
+    \@@_check_counter_not_allowed:nn { #3 } { sdcset }
+    \seq_if_in:NnT \g_@@_reserved_counter_seq { #4 }
+      { \@@_msg_error:nn { counter-read-only } { #4 } }
+      {
+        \@@_check_couter_not_define:nnnn { #2 } { #1 } { #4 } { sdcset }
+      }
+    \int_gset:cn { g_@@_#2_#3_#1_counter_#4_int } { #5 }
+  }
+\cs_generate_variant:Nn \@@_set_counter:nnnnn { nnnnx }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Show data by groups}
+%
+% \begin{macro}{\sdshow}
+% User interface that shows data in certain style.
+% \begin{arguments}
+%   \item \meta{star} means global group otherwise local group
+%   \item \meta{domain}
+%   \item \meta{group}
+% \end{arguments}
+%    \begin{macrocode}
+\NewDocumentCommand { \sdshow } { s m m }
+  {
+    \IfBooleanTF { #1 }
+      { \@@_show:nnn { global } }
+      { \@@_show:nnn { local } }
+    { #2 } { #3 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_show:nnn}
+% Hook that invokes internal show functions.
+% \begin{arguments}
+%   \item \meta{global/local (group)}
+%   \item \meta{domain}
+%   \item \meta{group}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_show:nnn
+  {
+    \cs_if_exist_use:c { @@_#2_show_cs_#1_#3 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdsetshowstyle, \sdsetshowstyle*}
+% User interface that defines the show style of the group. Star version is
+% used for global group while non-star version is for local group.
+%    \begin{macrocode}
+\NewDocumentCommand { \sdsetshowstyle } { s }
+  {
+    \IfBooleanTF { #1 }
+      { \@@_set_show_global_style:nnnnnn }
+      { \@@_set_show_local_style:nnnnnnnn }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_set_show_global_style:nnnnnn}
+% Wrapper function that checks if the domain, global group or prop is valid and
+% iterates the \meta{domain list} and \meta{global group list}.
+% \begin{arguments}
+%   \item \meta{domain list}
+%   \item \meta{global group list}
+%   \item \meta{anchor prop}
+%   \item \meta{before group code}
+%   \item \meta{after group code}
+%   \item \meta{item code}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_set_show_global_style:nnnnnn
+  {
+    \@@_check_domain_not_set:
+    \clist_map_inline:nn { #1 }
+      {
+        \@@_check_domain_not_define:nn { ##1 } { error }
+        \@@_check_undefined:nnnn
+          { ##1 } { prop=property } { #3 } { \sdsetshowstyle* }
+        \clist_map_inline:nn { #2 }
+          {
+            \@@_check_undefined:nnnn
+              { ##1 } { global~group } { ####1 } { \sdsetshowstyle* }
+            \cs_gset_protected:cpn { @@_##1_show_cs_global_####1 }
+              {
+                \@@_show_global:nnnnnn
+                  { #1 } { #2 } { #3 } { #4 } { #5 } { #6 }
+              }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_show_global:nnnnnn}
+% Internal function that sets the show style of global group. \meta{anchor
+% prop} is used to get the index of the item.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{global group}
+%   \item \meta{anchor prop}
+%   \item \meta{before group code}
+%   \item \meta{after group code}
+%   \item \meta{item code}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_show_global:nnnnnn
+  {
+    \int_zero_new:c { g_@@_#1_reserved_counter_sditem_int }
+    \@@_init_cs_global_empty_prop:nnn { #1 } { #2 } { #3 }
+    \@@_init_cs_counter:nn { #1 } { show }
+    \@@_show_global_init_cs_use:nn { #1 } { #2 }
+    #4
+    \seq_map_inline:cn { g_@@_#1_global_group_#2_prop_#3_seq }
+      {
+        \int_incr:c { g_@@_#1_reserved_counter_sditem_int }
+        #6
+      }
+    #5
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_init_cs_global_empty_prop:nnn, \sdIfEmptyPropTF,
+% \sdIfEmptyPropT, \sdIfEmptyPropF}
+% Define conditions for judging whether the sequence of \meta{prop}
+% in global group is empty.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{group}
+%   \item \meta{prop}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_init_cs_global_empty_prop:nnn
+  {
+    \prg_set_conditional:Nnn \@@_if_empty_prop: { T, F, TF, p}
+      {
+        \seq_if_empty:cTF { g_@@_#1_global_group_#2_prop_#3_seq }
+          { \prg_return_true: }
+          { \prg_return_false: }
+      }
+    \cs_set_eq:NN \sdIfEmptyPropTF \@@_if_empty_prop:TF
+    \cs_set_eq:NN \sdIfEmptyPropT \@@_if_empty_prop:T
+    \cs_set_eq:NN \sdIfEmptyPropF \@@_if_empty_prop:F
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_show_global_init_cs_use:nn}
+% Internal function that declare command to print the content of the property
+% of global group.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{global group}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_show_global_init_cs_use:nn
+  {
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sduse}
+% User interface that print the content of the property.
+% \begin{arguments}
+%   \item in case of wrong usage
+%   \item \meta{prop}
+% \end{arguments}
+%    \begin{macrocode}
+    \DeclareDocumentCommand { \sduse } { o m }
+      {
+        \IfValueT { ##1 }
+          {
+            \@@_msg_warning:n { show-global-ignore-optional }
+          }
+        \@@_check_undefined:nnnn
+          { #1 } { prop=property } { ##2 } { \sduse }
+        \@@_check_invalid_index:nnnnnn { #1 } { global } { #2 } { ##2 }
+          { g_@@_#1_global_group_#2_prop_##2_seq }
+          { g_@@_#1_reserved_counter_sditem_int }
+        \seq_item:cn { g_@@_#1_global_group_#2_prop_##2_seq }
+          { \int_use:c { g_@@_#1_reserved_counter_sditem_int } }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_set_show_local_style:nnnnnnnn}
+% Wrapper function that checks if the domain, local group or prop is valid and
+% iterates the \meta{domain list} and \meta{local group list}.
+% \begin{arguments}
+%   \item \meta{domain list}
+%   \item \meta{local group list}
+%   \item \meta{anchor prop}
+%   \item \meta{before group code}
+%   \item \meta{after group code}
+%   \item \meta{before subgroup code}
+%   \item \meta{after subgroup code}
+%   \item \meta{item code}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_set_show_local_style:nnnnnnnn
+  {
+    \@@_check_domain_not_set:
+    \clist_map_inline:nn { #1 }
+      {
+        \@@_check_domain_not_define:nn { ##1 } { error }
+        \@@_check_undefined:nnnn
+          { ##1 } { prop=property } { #3 } { \setshowstyle }
+        \clist_map_inline:nn { #2 }
+          {
+            \@@_check_undefined:nnnn
+              { ##1 } { local~group } { ####1 } { \setshowstyle }
+            \cs_gset_protected:cpn { @@_##1_show_cs_local_####1 }
+              {
+                \@@_show_local:nnnnnnnn
+                  { #1 } { #2 } { #3 } { #4 }
+                  { #5 } { #6 } { #7 } { #8 }
+              }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_show_local:nnnnnnnn}
+% Internal function that sets the show style of local group. \meta{anchor
+% prop} is used to get the index of the item.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{local group}
+%   \item \meta{anchor prop}
+%   \item \meta{before group code}
+%   \item \meta{after group code}
+%   \item \meta{before subgroup code}
+%   \item \meta{after subgroup code}
+%   \item \meta{item code}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_show_local:nnnnnnnn
+  {
+    \int_zero_new:c { g_@@_#1_reserved_counter_sdgroup_int }
+    \@@_init_cs_no_subgroup:nn { #1 } { #2 }
+    \@@_init_cs_counter:nn { #1 } { show }
+    #4
+    \seq_map_inline:cn { g_@@_#1_subgroup_#2_index_seq }
+      {
+        \int_gincr:c { g_@@_#1_reserved_counter_sdgroup_int }
+        \@@_show_local_init_cs_use:nnn { #1 } { #2 } { ##1 }
+        \@@_show_local_sub:nnnnnnn { #1 } { #2 } { #3 }
+          { ##1 } { #6 } { #7 } { #8 }
+      }
+    #5
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_init_cs_no_subgroup:nn, \sdIfNoSubgroupTF,
+% \sdIfNoSubgroupT, \sdIfNoSubgroupF}
+% Define conditions for judging whether \meta{local group} has no subgroup.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{local group}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_init_cs_no_subgroup:nn
+  {
+    \prg_set_conditional:Nnn \@@_if_no_subgroup: { T, F, TF, p}
+      {
+        \seq_if_empty:cTF { g_@@_#1_subgroup_#2_index_seq }
+          { \prg_return_true: }
+          { \prg_return_false: }
+      }
+    \cs_set_eq:NN \sdIfNoSubgroupTF \@@_if_no_subgroup:TF
+    \cs_set_eq:NN \sdIfNoSubgroupT \@@_if_no_subgroup:T
+    \cs_set_eq:NN \sdIfNoSubgroupF \@@_if_no_subgroup:F
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_show_local_sub:nnnnnnn}
+% Internal function that sets the show style of local subgroup. \meta{anchor
+% prop} is used to get the index of the item.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{local group}
+%   \item \meta{anchor prop}
+%   \item \meta{index} of subgroup
+%   \item \meta{before subgroup code}
+%   \item \meta{after subgroup code}
+%   \item \meta{item code}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_show_local_sub:nnnnnnn
+  {
+    \int_zero_new:c { g_@@_#1_reserved_counter_sditem_int }
+    \@@_init_cs_local_empty_prop:nnnn { #1 } { #2 } { #3 } { #4 }
+    #5
+    \seq_map_inline:cn { g_@@_#1_local_group_#2_prop_#3_#4_seq }
+      {
+        \int_incr:c { g_@@_#1_reserved_counter_sditem_int }
+        #7
+      }
+    #6
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_init_cs_local_empty_prop:nnnn, \sdIfEmptyPropTF,
+% \sdIfEmptyPropT, \sdIfEmptyPropF}
+% Define conditions for judging whether the sequence of \meta{prop}
+% in local subgroup is empty.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{group}
+%   \item \meta{prop}
+%   \item \meta{index} of subgroup
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_init_cs_local_empty_prop:nnnn
+  {
+    \prg_set_conditional:Nnn \@@_if_empty_prop: { T, F, TF, p}
+      {
+        \seq_if_empty:cTF { g_@@_#1_local_group_#2_prop_#3_#4_seq }
+          { \prg_return_true: }
+          { \prg_return_false: }
+      }
+    \cs_set_eq:NN \sdIfEmptyPropTF \@@_if_empty_prop:TF
+    \cs_set_eq:NN \sdIfEmptyPropT \@@_if_empty_prop:T
+    \cs_set_eq:NN \sdIfEmptyPropF \@@_if_empty_prop:F
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_show_local_init_cs_use:nnn}
+% Internal function that declare command to print the content of the property
+% of local group. And you can also print the content of the property in
+% synchronous global group.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{local group}
+%   \item \meta{index} of local subgroup
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_show_local_init_cs_use:nnn
+  {
+    \DeclareDocumentCommand { \sduse } { o m }
+      {
+        \IfValueTF { ##1 }
+          {
+            \@@_show_local_use_global:nnn { #1 } { ##1 } { ##2 }
+          }
+          {
+            \@@_show_local_use_local:nnnn { #1 } { #2 } { ##2 } { #3 }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_show_local_use_global:nnn}
+% Internal function that declare command to print the content of the property
+% of synchronous global group.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{global group}
+%   \item \meta{prop}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_show_local_use_global:nnn
+  {
+    \@@_check_undefined:nnnn
+      { #1 } { prop=property } { #3 } { \sduse }
+    \@@_check_invalid_index:nnnnnn { #1 } { global } { #2 } { #3 }
+      { g_@@_#1_global_group_#2_prop_#3_seq }
+      { g_@@_#1_reserved_counter_sdgroup_int }
+    \seq_item:cn { g_@@_#1_global_group_#2_prop_#3_seq }
+      { \int_use:c { g_@@_#1_reserved_counter_sdgroup_int } }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_show_local_use_local:nnnn}
+% Internal function that declare command to print the content of the property
+% of local group.
+% \begin{arguments}
+%   \item \meta{domain}
+%   \item \meta{global group}
+%   \item \meta{prop}
+%   \item \meta{index} of local subgroup
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_show_local_use_local:nnnn
+  {
+    \@@_check_undefined:nnnn
+      { #1 } { prop=property } { #3 } { \sduse }
+    \@@_check_invalid_index:nnnnnn { #1 } { local } { #2 } { #3 }
+      { g_@@_#1_local_group_#2_prop_#3_#4_seq }
+      { g_@@_#1_reserved_counter_sditem_int }
+    \seq_item:cn { g_@@_#1_local_group_#2_prop_#3_#4_seq }
+      { \int_use:c { g_@@_#1_reserved_counter_sditem_int } }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Review point}
+%
+% \begin{macro}{\NewsdReviewPoint}
+% User interface that defines review point.
+% \begin{arguments}
+%   \item \meta{name}
+%   \item \meta{review point}
+% \end{arguments}
+%    \begin{macrocode}
+\NewDocumentCommand { \NewsdReviewPoint } { m m }
+  {
+    \seq_gset_from_clist:cn { g_@@_review_point_#1_seq } {  #2 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdIfReviewTF, \sdIfReviewT, \sdIfReviewF}
+% Conditions of review point.
+%    \begin{macrocode}
+% \begin{arguments}
+%   \item \meta{review point}
+%   \item \meta{date A}
+%   \item \meta{date B}
+% \end{arguments}
+\prg_new_conditional:Nnn \@@_if_review:nnn { T, F, TF }
+  {
+    \sdutil_if_review:cnnTF { g_@@_review_point_#1_seq } { #2 } { #3 }
+      { \prg_return_true: }
+      { \prg_return_false: }
+  }
+\cs_set_eq:NN \sdIfReviewTF \@@_if_review:nnnTF
+\cs_set_eq:NN \sdIfReviewT \@@_if_review:nnnT
+\cs_set_eq:NN \sdIfReviewF \@@_if_review:nnnF
+%</package>
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Package \textsf{sdutil}}
+% This package provides some common functions.
+%
+%    \begin{macrocode}
+%<*sdutil>
+%<@@=sdutil>
+\RequirePackage[calc]{datetime2}
+\RequirePackage{expl3}
+\ProvidesExplPackage
+  { sdutil }
+  { \myfiledate }
+  { \myfileversion }
+  { Provide common functions for showdata }
+%    \end{macrocode}
+%
+% Define some variables.
+%    \begin{macrocode}
+\newcount\l_@@_date_diff
+\bool_new:N \l_@@_review_bool
+%    \end{macrocode}
+%
+% Some variants of standard functions.
+%    \begin{macrocode}
+\cs_generate_variant:Nn \seq_set_split:Nnn { Nno }
+\prg_generate_conditional_variant:Nnn \seq_if_in:Nn { Nx, cx } { T, F, TF, p }
+\prg_generate_conditional_variant:Nnn \clist_if_in:Nn { Nx, cx } { T, F, TF, p }
+%    \end{macrocode}
+%
+% \begin{macro}{\sdutil_parse_kv:w}
+% Parse \meta{key=val}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \sdutil_parse_kv:w #1=#2\sd_nil
+  {
+    \tl_clear_new:N \l_@@_tmpa_tl
+    \tl_clear_new:N \l_@@_tmpb_tl
+    \tl_set:Nn \l_@@_tmpa_tl { #1 }
+    \tl_set:Nn \l_@@_tmpb_tl { #2 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdutil_get_kv:nNN}
+% Parse \meta{key=val} and save \meta{key} and \meta{val} to macros.
+%    \begin{macrocode}
+\cs_new_protected:Nn \sdutil_get_kv:nNN
+  {
+    \sdutil_parse_kv:w #1\sd_nil
+    \tl_set_eq:NN #2 \l_@@_tmpa_tl
+    \tl_set_eq:NN #3 \l_@@_tmpb_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdutil_do_kv:nn}
+% Parse \meta{key=val} and run the code where |#1| represents \meta{key} and
+% |#2| represents \meta{val}.
+% \begin{arguments}
+%   \item \meta{key=val}
+%   \item \meta{code}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \sdutil_do_kv:nn
+  {
+    \cs_set_protected:Npn \@@_do_kv_code:nn ##1 ##2 { #2 }
+    \cs_generate_variant:Nn \@@_do_kv_code:nn { VV }
+    \sdutil_parse_kv:w #1\rv_nil
+    \@@_do_kv_code:VV \l_@@_tmpa_tl \l_@@_tmpb_tl
+  }
+\cs_generate_variant:Nn \sdutil_do_kv:nn { nx, xn, xx }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdutil_do_kv_variable:nNNn}
+% Parse \meta{key=val} and run the code where first \meta{tl var} represents
+% \meta{key} and second \meta{tl var} represents \meta{val}.
+%    \begin{macrocode}
+\cs_new_protected:Nn \sdutil_do_kv_variable:nNNn
+  {
+    \cs_set_protected:Npn \@@_do_kv_variable_code: { #4 }
+    \sdutil_parse_kv:w #1\rv_nil
+    \tl_clear_new:N #2
+    \tl_clear_new:N #3
+    \tl_set_eq:NN #2 \l_@@_tmpa_tl
+    \tl_set_eq:NN #3 \l_@@_tmpb_tl
+    \@@_do_kv_variable_code:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdutil_seq_append_clist:Nn}
+% Function that appends comma list to sequence.
+%    \begin{macrocode}
+\cs_new_protected:Nn \sdutil_seq_append_clist:Nn
+  {
+    \seq_clear_new:N \l_@@_tmpa_seq
+    \seq_set_from_clist:Nn \l_@@_tmpa_seq { #2 }
+    \seq_concat:NNN #1 #1 \l_@@_tmpa_seq
+  }
+\cs_generate_variant:Nn \sdutil_seq_append_clist:Nn { cn }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdutil_seq_gappend_clist:Nn}
+% Function that appends comma list to sequence globally.
+%    \begin{macrocode}
+\cs_new_protected:Nn \sdutil_seq_gappend_clist:Nn
+  {
+    \seq_clear_new:N \l_@@_tmpa_seq
+    \seq_set_from_clist:Nn \l_@@_tmpa_seq { #2 }
+    \seq_gconcat:NNN #1 #1 \l_@@_tmpa_seq
+  }
+\cs_generate_variant:Nn \sdutil_seq_gappend_clist:Nn { cn }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdutil_if_review_p:Nnn}
+% Condition that tests if \meta{date B} - \meta{date A} is in given sequence.
+% \begin{arguments}
+%   \item \meta{seq var}
+%   \item \meta{date A}
+%   \item \meta{date B}
+% \end{arguments}
+%    \begin{macrocode}
+\prg_new_conditional:Nnn \sdutil_if_review:Nnn { T, F, TF, p }
+  {
+    \DTMsavedate{recent}{#2}
+    \DTMsavedate{today}{#3}
+    \DTMsaveddatediff{today}{recent}{\l_@@_date_diff}% specious blank
+    \bool_set_false:N \l_@@_review_bool
+    \seq_if_in:NxTF #1 { \the\l_@@_date_diff }
+      { \prg_return_true: }
+      { \prg_return_false: }
+  }
+\prg_generate_conditional_variant:Nnn \sdutil_if_review:Nnn { cnn } { T, F, TF, p }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdutil_regex_replace_all:nnnN}
+% Replace all occurrences of the \meta{regular expression} in the \meta{token
+% list} by the \meta{replacement} and assign the result locally to \meta{tl
+% var}.
+% \begin{arguments}
+%   \item \meta{regular expression}
+%   \item \meta{replacement}
+%   \item \meta{token list}
+%   \item \meta{tl var}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \sdutil_regex_replace_all:nnnN
+  {
+    \tl_set:Nn #4 { #3 }
+    \regex_replace_all:nnN { #1 } { #2 } #4
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\sdutil_set_msg_cs:n}
+% Set message functions for specified package.
+% \begin{arguments}
+%   \item \meta{module=module alias}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \sdutil_set_msg_cs:n
+  {
+    \str_if_in:nnTF { #1 } { = }
+      { \sdutil_get_kv:nNN { #1 } }
+      { \sdutil_get_kv:nNN { #1=#1 } }
+    \l_tmpa_tl \l_tmpb_tl
+    \regex_replace_all:nnN { - } { _ } \l_tmpb_tl
+    \cs_gset_protected:cn { __\l_tmpb_tl _msg_new:nn }
+      {
+        \exp_args:NV \msg_new:nnn \l_tmpa_tl { ##1 } { ##2 }
+      }
+    \cs_gset_protected:cn { __\l_tmpb_tl _msg_new:nnn }
+      {
+        \exp_args:NV \msg_new:nnnn \l_tmpa_tl { ##1 } { ##2 } { ##3 }
+      }
+    \clist_map_inline:nn { fatal, critical, error, warning, info, log, none }
+      {
+        \@@_set_msg_issue_cs:VVn \l_tmpa_tl \l_tmpb_tl { ##1 }
+      }
+    \cs_gset:Nn \msg_fatal_text:n { Package~ ##1~ Error }
+    \cs_gset:Nn \msg_critical_text:n { Package~ ##1~ Error }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_set_msg_issue_cs:nnn}
+% Set functions that issue messages.
+% \begin{arguments}
+%   \item \meta{module name}
+%   \item \meta{formatted module alias}
+%   \item \meta{issue type}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_set_msg_issue_cs:nnn
+  {
+    \cs_gset_protected:cn { __#2_msg_#3:n }
+      {
+        \cs_if_exist_use:c { msg_#3:nn } { #1 } { ##1 }
+      }
+    \cs_gset_protected:cn { __#2_msg_#3:nn }
+      {
+        \cs_if_exist_use:c { msg_#3:nnn } { #1 } { ##1 } { ##2 }
+      }
+    \cs_gset_protected:cn { __#2_msg_#3:nnn }
+      {
+        \cs_if_exist_use:c { msg_#3:nnnn } { #1 } { ##1 } { ##2 } { ##3 }
+      }
+    \cs_gset_protected:cn { __#2_msg_#3:nnnn }
+      {
+        \cs_if_exist_use:c { msg_#3:nnnnn } { #1 } { ##1 }
+          { ##2 } { ##3 } { ##4 }
+      }
+    \cs_gset_protected:cn { __#2_msg_#3:nnnnn }
+      {
+        \cs_if_exist_use:c { msg_#3:nnnnnn } { #1 } { ##1 }
+          { ##2 } { ##3 } { ##4 } { ##5 }
+      }
+    \cs_generate_variant:cn { __#2_msg_#3:nn } { nx }
+    \cs_generate_variant:cn { __#2_msg_#3:nnn } { nxx }
+    \cs_generate_variant:cn { __#2_msg_#3:nnnn } { nxxx }
+    \cs_generate_variant:cn { __#2_msg_#3:nnnnn } { nxxxx }
+  }
+\cs_generate_variant:Nn \@@_set_msg_issue_cs:nnn { VVn }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</sdutil>
+%    \end{macrocode}
+% \end{implementation}
