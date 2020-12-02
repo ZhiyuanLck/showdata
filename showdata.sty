@@ -25,7 +25,7 @@
   { showdata }
   { \myfiledate }
   { \myfileversion }
-  { Store and show your datas }
+  { Store and show your data }
 \seq_new:N \g__showdata_domain_seq
 \seq_set_from_clist:Nn \g__showdata_reserved_counter_seq
   { sdenv, sdgroup, sditem }
@@ -500,7 +500,7 @@
       {
         \int_gzero_new:c { g__showdata_#1_addto_local_group_##1_counter_int }
       }
-    \NewDocumentCommand { \sdaddtogroup } { m }
+    \DeclareDocumentCommand { \sdaddtogroup } { m }
       { \__showdata_addto_group:nn { #1 } { ##1 } }
   }
 \cs_new_protected:Nn \__showdata_addto_group:nn

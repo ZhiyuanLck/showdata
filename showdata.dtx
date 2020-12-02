@@ -55,6 +55,7 @@ version 2005/12/01 or later.
   top=2.5cm,
   bottom=2.5cm
 }
+\usepackage{enumitem}
 
 \makeatletter
 \DeclareRobustCommand\oiarg[1]{%
@@ -94,8 +95,9 @@ version 2005/12/01 or later.
 % \fi
 % \title{The package \pkg{showdata}
 % \thanks{This document corresponds to the version~\myfileversion\space of
-% \pkg{nicematrix}, at the date of~\myfiledate.}} \author{F. Pantigny \\
-% \texttt{fpantigny@wanadoo.fr}}
+% \pkg{showdata}, at the date of~\myfiledate.}} \author{Li Changkai \\
+% \texttt{lichangkai225@qq.com}}
+% \date{\myfiledate}
 %
 % \hypersetup
 %   {
@@ -113,10 +115,35 @@ version 2005/12/01 or later.
 % \maketitle
 %
 % \begin{abstract}
-% The LaTeX package \pkg{nicematrix} provides new environments similar to the
-% classical environments |{tabular}|, |{array}| and |{matrix}| of \pkg{array}
-% and \pkg{amsmath} but with extended features.
+% The LaTeX package \pkg{showdata} provides commands to define your own
+% environment to save your data conveniently and provides command to set the
+% show style of your data.
 % \end{abstract}
+%
+% \section{Overview}
+% The package \pkg{showdata} organizes data through three data structures from
+% top to bottom:
+% \begin{itemize}
+%   \item domain
+%   \item group
+%   \item property
+% \end{itemize}
+%
+% A domain, or in technical term database, contains a collection of groups that
+% are all related to your data. A group contains several propertiey, the value
+% of which are saved in group when certain conditions are satisfied.
+%
+% For example, if we want to write a math mistake collection we can define a
+% domain named |math|, then we have lots of properties such as |date|,
+% |question|, |answer|, |hint| and so on. This is not enough! I do not want an
+% ordinary notebook that prints questions chronologically. So we can define some
+% groups:
+% \begin{description}[labelwidth=2cm]
+%   \item[star] save questions on which you have made a mistake more than once.
+%   \item[review] save questions to be reviewed on a specified date.
+%   \item[geometry] save geometric questions.
+%   \item[\ldots] other groups
+% \end{description}
 %
 % \newgeometry{
 %  left=5.2cm,
@@ -144,7 +171,7 @@ version 2005/12/01 or later.
   { showdata }
   { \myfiledate }
   { \myfileversion }
-  { Store and show your datas }
+  { Store and show your data }
 %    \end{macrocode}
 %
 % \subsection{Some variables}
@@ -1115,7 +1142,7 @@ version 2005/12/01 or later.
 %   \item \meta{local group list}
 % \end{arguments}
 %    \begin{macrocode}
-    \NewDocumentCommand { \sdaddtogroup } { m }
+    \DeclareDocumentCommand { \sdaddtogroup } { m }
       { \@@_addto_group:nn { #1 } { ##1 } }
   }
 %    \end{macrocode}
@@ -1982,6 +2009,15 @@ version 2005/12/01 or later.
     \cs_generate_variant:cn { __#2_msg_#3:nnnnn } { nxxxx }
   }
 \cs_generate_variant:Nn \@@_set_msg_issue_cs:nnn { VVn }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\IfBlankTF, \IfBlankT, \IfBlankF}
+% Conditions that check blank token list.
+%    \begin{macrocode}
+\cs_set_eq:NN \IfBlankTF \tl_if_blank:nTF
+\cs_set_eq:NN \IfBlankT \tl_if_blank:nT
+\cs_set_eq:NN \IfBlankF \tl_if_blank:nF
 %    \end{macrocode}
 % \end{macro}
 %
