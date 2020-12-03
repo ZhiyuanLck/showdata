@@ -1014,6 +1014,7 @@ version 2005/12/01 or later.
   {
     \@@_env_init_cs_save:n { #1 }
     \@@_init_cs_addto_group:n { #1 }
+    \@@_init_cs_added:n { #1 }
     \@@_init_cs_counter:nn { #1 } { env }
   }
 %    \end{macrocode}
@@ -1160,16 +1161,51 @@ version 2005/12/01 or later.
   {
     \clist_map_inline:nn { #2 }
       {
-        \int_gincr:c
-          { g_@@_#1_addto_local_group_##1_counter_int }
         \@@_check_undefined:nnnn
           { #1 } { local~group } { ##1 } { \sdaddtogroup }
-        \@@_check_group_add_once:nn { #1 } { ##1 }
-        \seq_gput_right:cx { g_@@_#1_subgroup_##1_index_seq }
+        \int_compare:nF
           {
-            \int_use:c { g_@@_#1_reserved_counter_sdenv_int }
+            \int_use:c
+              { g_@@_#1_addto_local_group_##1_counter_int }
+            > 0
+          }
+          {
+            \int_gincr:c
+              { g_@@_#1_addto_local_group_##1_counter_int }
+            \seq_gput_right:cx { g_@@_#1_subgroup_##1_index_seq }
+              {
+                \int_use:c { g_@@_#1_reserved_counter_sdenv_int }
+              }
           }
       }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_init_cs_added:n, \@@_if_added:n, \sdIfAddedTF, \sdIfAddedT,
+% \sdIfAddedF}
+% Define conditions for judging whether current subgroup has been added to the
+% local group.
+% \begin{arguments}
+%   \item \meta{domain}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_init_cs_added:n
+  {
+    \prg_set_conditional:Nnn \@@_if_added:n { T, F, TF, p}
+      {
+        \int_compare:nTF
+          {
+            \int_use:c
+              { g_@@_#1_addto_local_group_##1_counter_int }
+            > 0
+          }
+          { \prg_return_true: }
+          { \prg_return_false: }
+      }
+    \cs_set_eq:NN \sdIfAddedTF \@@_if_added:nTF
+    \cs_set_eq:NN \sdIfAddedT \@@_if_added:nT
+    \cs_set_eq:NN \sdIfAddedF \@@_if_added:nF
   }
 %    \end{macrocode}
 % \end{macro}

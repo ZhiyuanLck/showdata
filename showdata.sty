@@ -442,6 +442,7 @@
   {
     \__showdata_env_init_cs_save:n { #1 }
     \__showdata_init_cs_addto_group:n { #1 }
+    \__showdata_init_cs_added:n { #1 }
     \__showdata_init_cs_counter:nn { #1 } { env }
   }
 \cs_new_protected:Nn \__showdata_env_init_cs_save:n
@@ -507,16 +508,40 @@
   {
     \clist_map_inline:nn { #2 }
       {
-        \int_gincr:c
-          { g__showdata_#1_addto_local_group_##1_counter_int }
         \__showdata_check_undefined:nnnn
           { #1 } { local~group } { ##1 } { \sdaddtogroup }
-        \__showdata_check_group_add_once:nn { #1 } { ##1 }
-        \seq_gput_right:cx { g__showdata_#1_subgroup_##1_index_seq }
+        \int_compare:nF
           {
-            \int_use:c { g__showdata_#1_reserved_counter_sdenv_int }
+            \int_use:c
+              { g__showdata_#1_addto_local_group_##1_counter_int }
+            > 0
+          }
+          {
+            \int_gincr:c
+              { g__showdata_#1_addto_local_group_##1_counter_int }
+            \seq_gput_right:cx { g__showdata_#1_subgroup_##1_index_seq }
+              {
+                \int_use:c { g__showdata_#1_reserved_counter_sdenv_int }
+              }
           }
       }
+  }
+\cs_new_protected:Nn \__showdata_init_cs_added:n
+  {
+    \prg_set_conditional:Nnn \__showdata_if_added:n { T, F, TF, p}
+      {
+        \int_compare:nTF
+          {
+            \int_use:c
+              { g__showdata_#1_addto_local_group_##1_counter_int }
+            > 0
+          }
+          { \prg_return_true: }
+          { \prg_return_false: }
+      }
+    \cs_set_eq:NN \sdIfAddedTF \__showdata_if_added:nTF
+    \cs_set_eq:NN \sdIfAddedT \__showdata_if_added:nT
+    \cs_set_eq:NN \sdIfAddedF \__showdata_if_added:nF
   }
 \cs_new_protected:Nn \__showdata_init_cs_counter:nn
   {
